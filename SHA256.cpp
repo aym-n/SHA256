@@ -1,3 +1,5 @@
+#include <immintrin.h>  // AVX intrinsics
+
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -59,42 +61,50 @@ private:
 
   void transform(const uint8_t data[])
   {
-    uint32_t a, b, c, d, e, f, g, h, i, j, T1, T2, W[64];
+    __m256i a, b, c, d, e, f, g, h;
+    __m256i W[64];
+    __m256i T1, T2;
 
-    for (i = 0, j = 0; i < 16; ++i, j += 4) W[i] = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | (data[j + 3]);
-    for (; i < 64; ++i) W[i] = SIG1(W[i - 2]) + W[i - 7] + SIG0(W[i - 15]) + W[i - 16];
+    // Load initial state into AVX registers
+    a = _mm256_set1_epi32(state[0]);
+    b = _mm256_set1_epi32(state[1]);
+    c = _mm256_set1_epi32(state[2]);
+    d = _mm256_set1_epi32(state[3]);
+    e = _mm256_set1_epi32(state[4]);
+    f = _mm256_set1_epi32(state[5]);
+    g = _mm256_set1_epi32(state[6]);
+    h = _mm256_set1_epi32(state[7]);
 
-    a = state[0];
-    b = state[1];
-    c = state[2];
-    d = state[3];
-    e = state[4];
-    f = state[5];
-    g = state[6];
-    h = state[7];
+    // Prepare message schedule
+    for (int i = 0; i < 16; ++i)
+      W[i] = _mm256_set1_epi32((data[i * 4] << 24) | (data[i * 4 + 1] << 16) | (data[i * 4 + 2] << 8) | (data[i * 4 + 3]));
+    for (int i = 16; i < 64; ++i)
+      W[i] = _mm256_add_epi32(_mm256_add_epi32(SIG1(W[i - 2]), W[i - 7]), _mm256_add_epi32(SIG0(W[i - 15]), W[i - 16]));
 
-    for (i = 0; i < 64; ++i)
+    // SHA-256 compression function
+    for (int i = 0; i < 64; ++i)
     {
-      T1 = h + EP1(e) + CH(e, f, g) + K[i] + W[i];
-      T2 = EP0(a) + MAJ(a, b, c);
+      T1 = _mm256_add_epi32(_mm256_add_epi32(h, EP1(e)), _mm256_add_epi32(CH(e, f, g), _mm256_add_epi32(_mm256_set1_epi32(K[i]), W[i])));
+      T2 = _mm256_add_epi32(EP0(a), MAJ(a, b, c));
       h = g;
       g = f;
       f = e;
-      e = d + T1;
+      e = _mm256_add_epi32(d, T1);
       d = c;
       c = b;
       b = a;
-      a = T1 + T2;
+      a = _mm256_add_epi32(T1, T2);
     }
 
-    state[0] += a;
-    state[1] += b;
-    state[2] += c;
-    state[3] += d;
-    state[4] += e;
-    state[5] += f;
-    state[6] += g;
-    state[7] += h;
+    // Update state
+    state[0] += _mm256_extract_epi32(a, 0);
+    state[1] += _mm256_extract_epi32(b, 0);
+    state[2] += _mm256_extract_epi32(c, 0);
+    state[3] += _mm256_extract_epi32(d, 0);
+    state[4] += _mm256_extract_epi32(e, 0);
+    state[5] += _mm256_extract_epi32(f, 0);
+    state[6] += _mm256_extract_epi32(g, 0);
+    state[7] += _mm256_extract_epi32(h, 0);
   }
 
   void pad()
@@ -111,13 +121,31 @@ private:
     bufferLength += pad_len + 8;
   }
 
-  static uint32_t rightRotate(uint32_t x, int n) { return (x >> n) | (x << (32 - n)); }
-  static uint32_t SIG0(uint32_t x) { return rightRotate(x, 7) ^ rightRotate(x, 18) ^ (x >> 3); }
-  static uint32_t SIG1(uint32_t x) { return rightRotate(x, 17) ^ rightRotate(x, 19) ^ (x >> 10); }
-  static uint32_t EP0(uint32_t x) { return rightRotate(x, 2) ^ rightRotate(x, 13) ^ rightRotate(x, 22); }
-  static uint32_t EP1(uint32_t x) { return rightRotate(x, 6) ^ rightRotate(x, 11) ^ rightRotate(x, 25); }
-  static uint32_t CH(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (~x & z); }
-  static uint32_t MAJ(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (y & z) ^ (x & z); }
+  static __m256i rightRotate(__m256i x, int n) { return _mm256_or_si256(_mm256_srli_epi32(x, n), _mm256_slli_epi32(x, 32 - n)); }
+
+  static __m256i SIG0(__m256i x)
+  {
+    return _mm256_xor_si256(_mm256_xor_si256(rightRotate(x, 7), rightRotate(x, 18)), _mm256_srli_epi32(x, 3));
+  }
+
+  static __m256i SIG1(__m256i x)
+  {
+    return _mm256_xor_si256(_mm256_xor_si256(rightRotate(x, 17), rightRotate(x, 19)), _mm256_srli_epi32(x, 10));
+  }
+
+  static __m256i EP0(__m256i x) { return _mm256_xor_si256(_mm256_xor_si256(rightRotate(x, 2), rightRotate(x, 13)), rightRotate(x, 22)); }
+
+  static __m256i EP1(__m256i x) { return _mm256_xor_si256(_mm256_xor_si256(rightRotate(x, 6), rightRotate(x, 11)), rightRotate(x, 25)); }
+
+  static __m256i CH(__m256i x, __m256i y, __m256i z)
+  {
+    return _mm256_xor_si256(_mm256_and_si256(x, y), _mm256_and_si256(_mm256_andnot_si256(x, _mm256_set1_epi32(-1)), z));
+  }
+
+  static __m256i MAJ(__m256i x, __m256i y, __m256i z)
+  {
+    return _mm256_xor_si256(_mm256_xor_si256(_mm256_and_si256(x, y), _mm256_and_si256(y, z)), _mm256_and_si256(x, z));
+  }
 
   static const uint32_t K[64];
 
@@ -160,6 +188,7 @@ void benchmark(const string &input, int duration_seconds)
   cout << "Number of hashes performed: " << iterations << "\n";
   cout << "Speed: " << (float)iterations / (duration * 1000000) << " MH/s\n";
 }
+
 int main()
 {
   string input = "Hello Vicharak";
