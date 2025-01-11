@@ -96,8 +96,11 @@ void benchmark(const string &input, int num_hashes)
 
   cout << "[Start Calculating]" << endl;
   auto start = chrono::high_resolution_clock::now();
-  sha256_kernel<<<blocksPerGrid, threadsPerBlock>>>(d_output, num_hashes);
-  cudaDeviceSynchronize();
+  for (int i = 0; i < 10000; i++)
+  {
+    sha256_kernel<<<blocksPerGrid, threadsPerBlock>>>(d_output, num_hashes);
+    cudaDeviceSynchronize();
+  }
   auto end = chrono::high_resolution_clock::now();
 
   cudaMemcpy(h_output.data(), d_output, num_hashes * 8 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
@@ -105,7 +108,7 @@ void benchmark(const string &input, int num_hashes)
 
   auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
   cout << "Time taken: " << duration << " ms\n";
-  cout << "Speed: " << (float)num_hashes / (duration / 1000.0) / 1e6 << " MH/s\n";
+  cout << "Speed: " << (float)num_hashes * 10000 / (duration / 1000.0) / 1e6 << " MH/s\n";
 
   cout << "\nSHA256:\n";
   for (int i = 0; i < 8; ++i) cout << hex << setw(8) << setfill('0') << h_output[i] << " ";
