@@ -27,3 +27,7 @@ In this project, I explored various implementations of the SHA-256 hashing algor
 - **Reference:** [CUDA Bitcoin Miner](https://github.com/geedo0/cuda_bitcoin_miner)
 - ~173 MH/s
 - For comparison, I also tested a CUDA-based Bitcoin miner implementation, which is optimized for mining rather than general-purpose SHA-256 hashing. While it achieved a respectable ~173 MH/s.
+
+---
+
+For a theoretical analysis of the performance limits and bottlenecks, refer to the [ANALYSIS.md](ANALYSIS.md) file.
