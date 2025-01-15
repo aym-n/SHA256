@@ -6,18 +6,18 @@ To understand the theoretical limits of SHA-256 hashing performance, we need to 
 
 - **Operations per Hash:** A single SHA-256 hash requires approximately **2,200 operations**. This includes the arithmetic and logical steps involved in processing each 512-bit block of data, such as additions, rotations, and bitwise operations.
 - **GPU Compute Capability:** My NVIDIA GTX 1650 GPU has a theoretical peak performance of **6.390 TFLOPS** (trillion floating-point operations per second). Assuming each hash operation can be mapped to a floating-point operation, the maximum number of hashes per second the GPU can handle is:
-  \[
-  \text{Max Hashes/s (Compute)} = \frac{6.390 \times 10^{12} \text{ FLOPS}}{2,200 \text{ ops/hash}} \approx 2.9 \times 10^9 \text{ hashes/s} \ (\text{2.9 GH/s})
-  \]
+  ```
+  Max Hashes/s (Compute) = 6.390 TFLOPS / 2,200 ops/hash ≈ 2.9 billion hashes/s (2.9 GH/s)
+  ```
   This suggests that, computationally, the GPU could theoretically handle up to **2.9 billion hashes per second**.
 
 ### Memory Bandwidth
 
 - **Memory Transfer per Hash:** Each SHA-256 hash involves transferring **96 bytes** of data. This includes loading the input data, and storing the final hash output.
 - **GPU Memory Bandwidth:** The GTX 1650 has a memory bandwidth of **128.1 GB/s**. The maximum number of hashes per second limited by memory bandwidth is:
-  \[
-  \text{Max Hashes/s (Memory)} = \frac{128.1 \times 10^9 \text{ bytes/s}}{96 \text{ bytes/hash}} \approx 1.33 \times 10^9 \text{ hashes/s} \ (\text{1.33 GH/s})
-  \]
+  ```
+  Max Hashes/s (Memory) = 128.1 GB/s / 96 bytes/hash ≈ 1.33 billion hashes/s (1.33 GH/s)
+  ```
   This indicates that the memory subsystem can support up to **1.33 billion hashes per second**.
 
 ### Bottleneck Analysis
